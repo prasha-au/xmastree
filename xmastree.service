@@ -1,0 +1,13 @@
+[Unit]
+Description=Xmas tree lights.
+
+[Service]
+User=root
+Type=simple
+WorkingDirectory=/home/pi/xmastree
+Environment=NODE_ENV=production
+ExecStart=/home/pi/.nvm/versions/node/v12.20.0/bin/node index.js
+Restart=always
+
+[Install]
+WantedBy=multi-user.target
