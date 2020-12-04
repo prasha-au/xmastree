@@ -48,7 +48,7 @@ const checkAndTrigger = () => {
   const minutes = date.getMinutes();
   const timeNum = hours + minutes / 100;
   console.log('current timeNum is ', timeNum);
-  let newState = (timeNum >= 5.3 && timeNum <= 7) || (timeNum >= 18 && timeNum <= 22.2);
+  let newState = (timeNum >= 5.3 && timeNum <= 8) || (timeNum >= 18 && timeNum <= 22.2);
   if (forcedState === newState) {
     forcedState = undefined;
   } else if (forcedState !== undefined) {
