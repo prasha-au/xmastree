@@ -62,7 +62,7 @@ const checkAndTrigger = () => {
   }
 }
 
-setInterval(() => checkAndTrigger, 10 * 60 * 1000);
+setInterval(() => checkAndTrigger(), 10 * 60 * 1000);
 checkAndTrigger();
 
 
