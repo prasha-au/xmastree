@@ -1,5 +1,3 @@
-process.env.TZ = 'Australia/Perth';
-
 console.log('initializing');
 
 const { Gpio } = require('pigpio');
@@ -8,14 +6,16 @@ const mqtt = require('mqtt');
 const MQTT_URL = 'mqtt://192.168.1.4';
 const DEVICE_ID = 'xmastree';
 
-const relayTrigger = new Gpio(20, {mode: Gpio.OUTPUT});
+let state = false;
+
+const relayTrigger = new Gpio(4, {mode: Gpio.OUTPUT});
 relayTrigger.digitalWrite(0);
 
 const client = mqtt.connect(
   MQTT_URL,
   {
     will: {
-      topic: 'remote/lwt',
+      topic: 'device/lwt',
       payload: DEVICE_ID,
       qos: 0,
       retain: false,
@@ -23,70 +23,82 @@ const client = mqtt.connect(
   },
 );
 
-client.subscribe(`remote/runAction/${DEVICE_ID}`);
-client.subscribe(`remote/requestRegister`);
+
+const led = new Gpio(18, { mode: Gpio.OUTPUT });
+
+let dutyCycle = 0;
+let countUp = true;
+setInterval(() => {
+  if (!state) {
+    led.pwmWrite(0);
+  } else {
+    led.pwmWrite(dutyCycle);
+    dutyCycle = dutyCycle + (countUp ? 5 : -5);
+    if (dutyCycle >= 255) {
+      countUp = false;
+    } else if (dutyCycle <= 80) {
+      countUp = true;
+    }
+  }
+}, 20);
+
+client.subscribe(`device/runAction/${DEVICE_ID}`);
+client.subscribe(`device/requestRegister`);
 
 const triggerStatusPublish = () => {
-  client.publish('remote/registerDevice', JSON.stringify({
+  client.publish(`device/update/${DEVICE_ID}`, JSON.stringify({
     id: DEVICE_ID,
+    name: 'Christmas Tree',
     controls: {
-      toggleOn: {
-        type: 'simple',
-        label: lastState ? 'Turn Off' : 'Turn On',
+      power: {
+        type: 'toggle',
+        label: state ? 'Turn Off' : 'Turn On',
+        state: state
       },
     },
-  }));
+  }), (err) => {
+    if (err) {
+      console.error('Failed to publish ', err);
+    } else {
+      console.log('Published');
+    }
+  });
 };
-
-
-let lastState = false;
-let forcedState = undefined;
-const checkAndTrigger = () => {
-  console.log('checkAndTrigger');
-  const date = new Date();
-  const hours = date.getHours();
-  const minutes = date.getMinutes();
-  const timeNum = hours + minutes / 100;
-  console.log('current timeNum is ', timeNum);
-  let newState = (timeNum >= 5.3 && timeNum <= 8) || (timeNum >= 18 && timeNum <= 22.2);
-  if (forcedState === newState) {
-    forcedState = undefined;
-  } else if (forcedState !== undefined) {
-    newState = forcedState;
-  }
-  if (newState !== lastState) {
-    console.log('states do not match', lastState, 'to', newState);
-    relayTrigger.digitalWrite(newState ? 1 : 0);
-    lastState = newState;
-    triggerStatusPublish();
-  }
-}
-
-setInterval(() => checkAndTrigger(), 10 * 60 * 1000);
-checkAndTrigger();
 
 
 client.on('message', async (topic, payloadBuffer) => {
   console.log('<<< ', topic, payloadBuffer.toString());
   const payload = JSON.parse(payloadBuffer.toString());
   switch (topic) {
-    case 'remote/requestRegister':
+    case 'device/requestRegister':
       console.log('Sending register message.');
       triggerStatusPublish();
       break;
-    case `remote/runAction/${DEVICE_ID}`:
+    case `device/runAction/${DEVICE_ID}`:
+      console.log('got action payload', payload);
       switch (payload.data.control) {
-        case 'toggleOn': {
-          forcedState = !lastState;
-          checkAndTrigger();
+        case 'power': {
+          if (payload.data.value === undefined) {
+            state = !state;
+          } else {
+            state = !!payload.data.value;
+          }
+          relayTrigger.digitalWrite(state ? 1 : 0);
           break;
         }
         default:
           console.log(`Invalid control ${payload.data.control} provided.`);
       }
+      triggerStatusPublish();
       break;
     default:
       console.log(`Unhandled topic ${topic} provided.`);
   }
+});
+
+
+client.on('connect', () => {
+  console.log('connected to MQTT');
+  triggerStatusPublish();
 });
 
