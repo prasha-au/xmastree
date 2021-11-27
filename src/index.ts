@@ -185,15 +185,15 @@ client.on('message', async (topic, payloadBuffer) => {
           break;
         }
         case 'brightness': {
-          stateSubject.next({ ...currentState, brightness: payload.data.value });
+          stateSubject.next({ ...currentState, power: true, brightness: payload.data.value });
           break;
         }
         case 'speed': {
-          stateSubject.next({ ...currentState, speed: payload.data.value });
+          stateSubject.next({ ...currentState, power: true, speed: payload.data.value });
           break;
         }
         case 'resetState': {
-          stateSubject.next({ ...INITIAL_STATE, power: currentState.power });
+          stateSubject.next({ ...INITIAL_STATE, power: true });
           break;
         }
         default:
