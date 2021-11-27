@@ -115,12 +115,9 @@ stateSubject.asObservable().pipe(
       turnOff();
       return NEVER;
     } else {
-
       const pulseTime = 5000 - Math.floor(4800 * (state.speed / 100));
-      console.log('pulseTime', pulseTime);
       return merge(
-        // TODO: Star brightness should go along with the rest of the tree..
-        createTimer({ pwm: star, brightness: 100, pulseTime: pulseTime * 2, minBrightness: 30 }),
+        createTimer({ pwm: star, brightness: Math.min(state.brightness + 20, 100), pulseTime: pulseTime, minBrightness: Math.ceil(30 - state.brightness / 100) }),
         createTimer({ pwm: ena, brightness: state.brightness, pulseTime: pulseTime, alternate: { pos: in1, neg: in2 } }),
         createTimer({ pwm: enb, brightness: state.brightness, pulseTime: pulseTime, alternate: { pos: in3, neg: in4 }, delayTime: pulseTime / 2 })
       );
