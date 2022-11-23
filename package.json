@@ -13,6 +13,7 @@
   "dependencies": {
     "@types/node": "^16.11.10",
     "mqtt": "^4.2.6",
+    "nodemcu-tool": "^3.2.1",
     "pigpio": "^3.3.1",
     "rxjs": "^7.4.0",
     "ts-node": "^10.4.0",
