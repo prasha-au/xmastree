@@ -44,14 +44,21 @@ AlternatingLightTimer = {
   light_timer = nil,
 }
 
+function AlternatingLightTimer:new ()
+  local o = {}
+  setmetatable(o, self)
+  self.__index = self
+  return o
+end
+
 function AlternatingLightTimer:set_config(iterations, speed, brightness_min, brightness_max)
   self.light_timer = LightTimer:new()
-  self.light.set_config(iterations / 2, speed, brightness_min, brightness_max)
+  self.light_timer:set_config(iterations / 2, speed, brightness_min, brightness_max)
 end
 
 
 function AlternatingLightTimer:iterate(itr_num)
-  local itr = itr_num & (self.light_timer.total_cycle_time * 2)
+  local itr = itr_num % (self.light_timer.total_cycle_time * 2)
   local light_idx = itr > self.light_timer.total_cycle_time and 1 or 0
   return {
     brightness_this_itr = self.light_timer:iterate(itr),
