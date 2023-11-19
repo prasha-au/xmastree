@@ -6,7 +6,7 @@ User=root
 Type=simple
 WorkingDirectory=/root/xmastree
 Environment=NODE_ENV=production
-ExecStart=/root/.nvm/versions/node/v12.22.7/bin/node index.js
+ExecStart=/root/.nvm/versions/node/v16.20.2/bin/node index.js
 Restart=always
 
 [Install]
