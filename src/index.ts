@@ -73,11 +73,20 @@ async function publishStatus(): Promise<void> {
 }
 
 
+type ControlMessage = {
+  control: 'power'; value: boolean;
+} | {
+  control: 'brightness'; value: number;
+} | {
+  control: 'speed'; value: number;
+} | {
+  control: 'resetState';
+};
+
+
 client.on('message', (topic, payloadBuffer) => {
   console.log('<<< ', topic, payloadBuffer.toString());
-  const payload = JSON.parse(payloadBuffer.toString()) as {
-    data: { control: string; value?: number; };
-  };
+  const payload = JSON.parse(payloadBuffer.toString()) as { data: ControlMessage; };
   switch (topic) {
     case 'device/requestRegister':
       console.log('Sending register message.');
@@ -101,11 +110,13 @@ client.on('message', (topic, payloadBuffer) => {
           break;
         }
         case 'resetState': {
-          stateSubject.next({ ...INITIAL_STATE, power: true });
+          stateSubject.next({ ...INITIAL_STATE });
           break;
         }
-        default:
-          console.log(`Invalid control ${payload.data.control} provided.`);
+        default: {
+          const _badControl: never = payload.data['control'];
+          console.log(`Invalid control ${_badControl} provided.`);
+        }
       }
       void publishStatus();
       break;
