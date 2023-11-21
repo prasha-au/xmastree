@@ -11,7 +11,7 @@ const DEVICE_ID = 'xmastree';
 const hardware = initHardware();
 
 
-const MODES = ['pulse', 'sound'] as const;
+const MODES = ['twinkle', 'sound', 'pulse'] as const;
 
 interface TreeState {
   power: boolean;
@@ -22,7 +22,7 @@ interface TreeState {
 
 const INITIAL_STATE = {
   power: true,
-  mode: 'pulse',
+  mode: 'twinkle',
   brightness: 100,
   speed: 35,
 } as const;
@@ -45,7 +45,7 @@ stateSubject.asObservable().pipe(
           map(scene => actionSceneFrame(hardware, scene)),
         );
       }
-      case 'pulse':
+      case 'twinkle':
       default: {
         const scene = generatePulseScene(state, 20);
         return createSceneObservable(hardware, scene);
@@ -118,9 +118,14 @@ client.on('message', (topic, payloadBuffer) => {
           stateSubject.next({ ...currentState, power: newPowerValue });
           break;
         }
-        case 'mode_sound':
+        case 'mode_twinkle':
         case 'mode_pulse':
-          stateSubject.next({ ...currentState, mode: payload.data.control.split('_')[1] as typeof MODES[number], power: true });
+        case 'mode_sound':
+          stateSubject.next({
+            ...currentState,
+            power: true,
+            mode: payload.data.control.replace(/^mode_/g, '') as typeof MODES[number],
+          });
           break;
         case 'brightness': {
           stateSubject.next({ ...currentState, power: true, brightness: payload.data.value });

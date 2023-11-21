@@ -27,10 +27,7 @@ export function decibelsToSoundPercentage(sampleFrames: number): OperatorFunctio
       const quietest = Math.min(...acc.frames);
       const range = loudest - quietest;
       const percent = Math.round(((curr - quietest) / range) * 100);
-      return {
-        percent: percent,
-        frames: acc.frames,
-      };
+      return { percent: percent, frames: acc.frames };
     }, { percent: 0, frames: [] as number[] }),
     map(v => v.percent),
   )

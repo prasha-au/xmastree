@@ -12,6 +12,8 @@ const { Gpio } = (isWindows ? require('pigpio-mock') : require('pigpio')) as typ
 
 const PWM_RANGE = 255;
 
+
+
 export interface Hardware {
   star: {
     setBrightness(value: number): void;
@@ -49,6 +51,7 @@ export function initHardware(): Hardware {
     gpio1.digitalWrite(reverse ? 1 : 0);
     gpio2.digitalWrite(reverse ? 0 : 1);
   }
+
 
   return {
     star: {
