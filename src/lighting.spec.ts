@@ -1,6 +1,6 @@
 import { generateAlternatingPulseMap, generateBasicPulseMap, generateTwinkleScene } from './lighting'
 
-jest.mock('pigpio', (): unknown => require('pigpio-mock'));
+jest.mock('pigpio', () => require('pigpio-mock') as unknown);
 
 
 describe('when creating a basic pulse pattern', () => {

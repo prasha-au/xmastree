@@ -1,7 +1,8 @@
 import * as mqtt from 'mqtt';
 import { BehaviorSubject, switchMap, NEVER, throttleTime, map } from 'rxjs';
-import { generateOffScene, generatePulseScene, generateTwinkleScene } from './lighting';
-import { actionSceneFrame, createSceneObservable, initHardware } from './hardware';
+import { generateOffScene, generatePulseScene } from './lighting';
+import { actionSceneFrame, createSceneObservable, getMicStream, initHardware } from './hardware';
+import { generateSoundScene } from './audio';
 
 const MQTT_URL = 'mqtt://192.168.1.4';
 const DEVICE_ID = 'xmastree';
@@ -10,7 +11,7 @@ const DEVICE_ID = 'xmastree';
 const hardware = initHardware();
 
 
-const MODES = ['twinkle', 'pulse'] as const;
+const MODES = ['pulse', 'sound'] as const;
 
 interface TreeState {
   power: boolean;
@@ -21,7 +22,7 @@ interface TreeState {
 
 const INITIAL_STATE = {
   power: true,
-  mode: 'twinkle',
+  mode: 'pulse',
   brightness: 100,
   speed: 35,
 } as const;
@@ -39,11 +40,16 @@ stateSubject.asObservable().pipe(
       return NEVER;
     }
     switch (state.mode) {
+      case 'sound': {
+        return generateSoundScene(getMicStream()).pipe(
+          map(scene => actionSceneFrame(hardware, scene)),
+        );
+      }
       case 'pulse':
-        return createSceneObservable(hardware, generatePulseScene(state, 20));
-      case 'twinkle':
-      default:
-        return createSceneObservable(hardware, generateTwinkleScene(state, 1));
+      default: {
+        const scene = generatePulseScene(state, 20);
+        return createSceneObservable(hardware, scene);
+      }
     }
   })
 ).subscribe();
@@ -73,7 +79,7 @@ async function publishStatus(): Promise<void> {
     name: 'Christmas Tree',
     controls: {
       power: { type: 'toggle', label: currentState.power ? 'Turn Off' : 'Turn On', state: currentState.power },
-      ...Object.fromEntries(MODES.map(mode => [`mode_${mode}`, { type: 'toggle', label: mode, state: currentState.mode === mode && currentState.power }])),
+      ...Object.fromEntries(MODES.map(mode => [`mode_${mode}`, { type: 'toggle', label: mode, state: currentState.mode === mode }])),
       brightness: { type: 'slider', label: 'Brightness', state: currentState.brightness },
       speed: { type: 'slider', label: 'Speed', state: currentState.speed },
       resetState: { type: 'simple', label: 'Reset' }
@@ -112,13 +118,9 @@ client.on('message', (topic, payloadBuffer) => {
           stateSubject.next({ ...currentState, power: newPowerValue });
           break;
         }
-        case 'mode_twinkle':
+        case 'mode_sound':
         case 'mode_pulse':
-          stateSubject.next({
-            ...currentState,
-            power: true,
-            mode: payload.data.control.replace(/^mode_/g, '') as typeof MODES[number],
-          });
+          stateSubject.next({ ...currentState, mode: payload.data.control.split('_')[1] as typeof MODES[number], power: true });
           break;
         case 'brightness': {
           stateSubject.next({ ...currentState, power: true, brightness: payload.data.value });
