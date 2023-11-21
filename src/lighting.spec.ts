@@ -1,4 +1,4 @@
-import { generateAlternatingPulseMap, generateBasicPulseMap, generatePulseScene } from './lighting'
+import { generateAlternatingPulseMap, generateBasicPulseMap, generateTwinkleScene } from './lighting'
 
 jest.mock('pigpio', (): unknown => require('pigpio-mock'));
 
@@ -33,9 +33,9 @@ describe('when creating an alternating pulse pattern', () => {
   });
 });
 
-describe('generatePulseScene', () => {
+describe('generateTwinkleScene', () => {
   it('should generate the correct structure', () => {
-    const data = generatePulseScene({ speed: 1, brightness: 100 }, 100);
+    const data = generateTwinkleScene({ speed: 1, brightness: 100 }, 100);
     expect(data.frames).toHaveLength(50);
     expect(data.frames[0]).toEqual({
       star: { brightness: expect.any(Number) as unknown },

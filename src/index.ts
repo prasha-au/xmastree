@@ -1,6 +1,6 @@
 import * as mqtt from 'mqtt';
-import { BehaviorSubject, switchMap, NEVER, throttleTime } from 'rxjs';
-import { generateOffScene, generatePulseScene } from './lighting';
+import { BehaviorSubject, switchMap, NEVER, throttleTime, map } from 'rxjs';
+import { generateOffScene, generatePulseScene, generateTwinkleScene } from './lighting';
 import { actionSceneFrame, createSceneObservable, initHardware } from './hardware';
 
 const MQTT_URL = 'mqtt://192.168.1.4';
@@ -10,14 +10,18 @@ const DEVICE_ID = 'xmastree';
 const hardware = initHardware();
 
 
+const MODES = ['twinkle', 'pulse'] as const;
+
 interface TreeState {
   power: boolean;
+  mode: typeof MODES[number],
   brightness: number;
   speed: number;
 }
 
 const INITIAL_STATE = {
   power: true,
+  mode: 'twinkle',
   brightness: 100,
   speed: 35,
 } as const;
@@ -33,9 +37,13 @@ stateSubject.asObservable().pipe(
     if (!state.power) {
       actionSceneFrame(hardware, generateOffScene());
       return NEVER;
-    } else {
-      const scene = generatePulseScene(state, 20);
-      return createSceneObservable(hardware, scene);
+    }
+    switch (state.mode) {
+      case 'pulse':
+        return createSceneObservable(hardware, generatePulseScene(state, 20));
+      case 'twinkle':
+      default:
+        return createSceneObservable(hardware, generateTwinkleScene(state, 1));
     }
   })
 ).subscribe();
@@ -65,6 +73,7 @@ async function publishStatus(): Promise<void> {
     name: 'Christmas Tree',
     controls: {
       power: { type: 'toggle', label: currentState.power ? 'Turn Off' : 'Turn On', state: currentState.power },
+      ...Object.fromEntries(MODES.map(mode => [`mode_${mode}`, { type: 'toggle', label: mode, state: currentState.mode === mode && currentState.power }])),
       brightness: { type: 'slider', label: 'Brightness', state: currentState.brightness },
       speed: { type: 'slider', label: 'Speed', state: currentState.speed },
       resetState: { type: 'simple', label: 'Reset' }
@@ -75,6 +84,8 @@ async function publishStatus(): Promise<void> {
 
 type ControlMessage = {
   control: 'power'; value: boolean;
+} | {
+  control: `mode_${typeof MODES[number]}`;
 } | {
   control: 'brightness'; value: number;
 } | {
@@ -101,6 +112,14 @@ client.on('message', (topic, payloadBuffer) => {
           stateSubject.next({ ...currentState, power: newPowerValue });
           break;
         }
+        case 'mode_twinkle':
+        case 'mode_pulse':
+          stateSubject.next({
+            ...currentState,
+            power: true,
+            mode: payload.data.control.replace(/^mode_/g, '') as typeof MODES[number],
+          });
+          break;
         case 'brightness': {
           stateSubject.next({ ...currentState, power: true, brightness: payload.data.value });
           break;
@@ -115,7 +134,7 @@ client.on('message', (topic, payloadBuffer) => {
         }
         default: {
           const _badControl: never = payload.data['control'];
-          console.log(`Invalid control ${_badControl} provided.`);
+          console.log(`Invalid control ${JSON.stringify(_badControl)} provided.`);
         }
       }
       void publishStatus();
