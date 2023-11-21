@@ -27,8 +27,8 @@ describe('when creating an alternating pulse pattern', () => {
   it('should contain the same values for both chains', () => {
     const data = generateAlternatingPulseMap({ minBrightness: 30, maxBrightness: 100, totalDuration: 2000, interval: 100 });
     expect(data).toHaveLength(20);
-    expect(data.filter(d => d.flip)).toHaveLength(10);
-    expect(data.filter(d => !d.flip)).toHaveLength(10);
+    expect(data.filter(d => d.direction === 'positive')).toHaveLength(10);
+    expect(data.filter(d => d.direction === 'negative')).toHaveLength(10);
     expect(data.slice(0, 10).map(d => d.brightness)).toEqual(data.slice(10).map(d => d.brightness));
   });
 });

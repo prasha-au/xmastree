@@ -1,11 +1,10 @@
 import { Observable, OperatorFunction, distinctUntilChanged, filter, map, scan } from 'rxjs';
-import { SceneFrame } from './lighting';
-
+import { LightState } from './hardware';
 
 /**
  * @param buffer 1 channel, 8-bit, signed, little endian PCM data
  */
-export function getDecibels(buffer: Buffer): number {
+function getDecibels(buffer: Buffer): number {
   const amplitudeValues = Array.from(buffer, v => (v - 128) / 128);
   const sampleTotal = amplitudeValues.reduce((acc, curr) => acc + Math.abs(curr), 0);
   const numberOfSamples = amplitudeValues.length;
@@ -13,7 +12,7 @@ export function getDecibels(buffer: Buffer): number {
 }
 
 
-export function decibelsToSoundPercentage(sampleFrames: number): OperatorFunction<number, number> {
+function decibelsToSoundPercentage(sampleFrames: number): OperatorFunction<number, number> {
   return input$ => input$.pipe(
     map(v => -v),
     scan((acc, curr) => {
@@ -34,7 +33,7 @@ export function decibelsToSoundPercentage(sampleFrames: number): OperatorFunctio
 }
 
 
-export function generateSoundScene(micStream: Observable<Buffer>): Observable<SceneFrame> {
+export function generateSoundScene(micStream: Observable<Buffer>): Observable<LightState> {
   return micStream.pipe(
     map(v => getDecibels(v)),
     decibelsToSoundPercentage(1000),
@@ -43,8 +42,8 @@ export function generateSoundScene(micStream: Observable<Buffer>): Observable<Sc
     map(v => 100 - Math.max(v, 0)),
     map(brightness => ({
       star: { brightness },
-      light1: { brightness, flip: false },
-      light2: { brightness, flip: false },
+      light1: { brightness, direction: 'both' },
+      light2: { brightness, direction: 'both' },
     }))
   );
 }

@@ -1,14 +1,14 @@
 import * as mqtt from 'mqtt';
 import { BehaviorSubject, switchMap, NEVER, throttleTime, map } from 'rxjs';
-import { generateOffScene, generatePulseScene } from './lighting';
-import { actionSceneFrame, createSceneObservable, getMicStream, initHardware } from './hardware';
+import { createSceneObservable, generateOffScene, generatePulseScene, generateTwinkleScene } from './lighting';
+import { getMicStream, getLightHardware } from './hardware';
 import { generateSoundScene } from './audio';
 
 const MQTT_URL = 'mqtt://192.168.1.4';
 const DEVICE_ID = 'xmastree';
 
 
-const hardware = initHardware();
+const hardware = getLightHardware();
 
 
 const MODES = ['twinkle', 'sound', 'pulse'] as const;
@@ -36,19 +36,20 @@ stateSubject.asObservable().pipe(
   switchMap(state => {
     console.log('Setting up new state: ', state);
     if (!state.power) {
-      actionSceneFrame(hardware, generateOffScene());
+      hardware.setLightState(generateOffScene());
       return NEVER;
     }
     switch (state.mode) {
       case 'sound': {
         return generateSoundScene(getMicStream()).pipe(
-          map(scene => actionSceneFrame(hardware, scene)),
+          map(scene => hardware.setLightState(scene)),
         );
       }
+      case 'pulse':
+        return createSceneObservable(hardware, generatePulseScene(state, 20));
       case 'twinkle':
       default: {
-        const scene = generatePulseScene(state, 20);
-        return createSceneObservable(hardware, scene);
+        return createSceneObservable(hardware, generateTwinkleScene(state, 20));
       }
     }
   })
