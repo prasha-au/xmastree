@@ -1,6 +1,14 @@
-import { Gpio } from 'pigpio';
-import { Observable, map, repeat, share, take, timer } from 'rxjs';
+import type pigpioTypes from 'pigpio';
 import type { Scene, SceneFrame } from './lighting';
+import { Observable, map, repeat, share, skip, take, timer } from 'rxjs';
+import { platform } from 'os';
+import { spawn } from 'child_process';
+
+const isWindows = platform() === 'win32';
+
+
+const { Gpio } = (isWindows ? require('pigpio-mock') : require('pigpio')) as typeof pigpioTypes;
+
 
 const PWM_RANGE = 255;
 
@@ -33,11 +41,11 @@ export function initHardware(): Hardware {
   const in4 = new Gpio(24, { mode: Gpio.OUTPUT });
 
 
-  function setPwm(gpio: Gpio, value: number) {
+  function setPwm(gpio: pigpioTypes.Gpio, value: number) {
     gpio.pwmWrite(Math.round(PWM_RANGE * (value / 100)));
   }
 
-  function setDirection(gpio1: Gpio, gpio2: Gpio, reverse: boolean) {
+  function setDirection(gpio1: pigpioTypes.Gpio, gpio2: pigpioTypes.Gpio, reverse: boolean) {
     gpio1.digitalWrite(reverse ? 1 : 0);
     gpio2.digitalWrite(reverse ? 0 : 1);
   }
@@ -73,4 +81,20 @@ export function createSceneObservable(hardware: Hardware, scene: Scene): Observa
     map(frameIdx => actionSceneFrame(hardware, scene.frames[frameIdx])),
     share(),
   )
+}
+
+
+export function getMicStream() {
+  return new Observable<Buffer>(observer => {
+    const ps = isWindows
+      ? spawn('C:\\tools\\sox\\sox', ['-c', '1', '-r', '8000', '-b', '8', '-e', 'unsigned-integer', '-t', 'waveaudio', 'default', '-p', '--buffer', '500'])
+      : spawn('arecord', ['-c', '1', '-r', '8000', '-f', 'U8', '-D', 'plughw:1,0']);
+    ps.stdout.on('data', (data: Buffer) => observer.next(data));
+    ps.stderr.on('error', data => observer.error(data.toString()));
+    ps.on('close', () => observer.error('Prematurely closed'));
+    return () => { observer.complete(); ps.kill(); };
+  }).pipe(
+    skip(2),
+    share({ resetOnRefCountZero: true, resetOnError: true }),
+  );
 }

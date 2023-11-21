@@ -3,7 +3,7 @@ import { Gpio } from 'pigpio';
 
 process.env.PIGPIO_NO_LOGGING = '1';
 
-jest.mock('pigpio', (): unknown => require('pigpio-mock'));
+jest.mock('pigpio', () => require('pigpio-mock') as unknown);
 
 
 let hardware: Hardware;
