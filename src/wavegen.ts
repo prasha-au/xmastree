@@ -1,36 +1,40 @@
 import type pigpioTypes from 'pigpio';
 
-const pigpio = require('pigpio-mock') as typeof pigpioTypes;
-
-
-const WAVE_ACTION_INTERVAL = 1000;
+const WAVE_ACTION_INTERVAL = 5000;
 
 
 type WaveStepAction = Omit<pigpioTypes.GenericWaveStep, 'usDelay'>;
 
 
-export function basicPwm(brightness: number, windowUs: number): Record<number, WaveStepAction> {
-  const offTime = Math.round(windowUs * (brightness / 100));
-  return {
-    0: { gpioOn: 1, gpioOff: 0 },
-    [offTime]: { gpioOn: 0, gpioOff: 1 },
-  };
-}
+type SimpleWaveMap = { [timestamp: number]: boolean };
 
 
-
-export function transitionBrightness(from: number, to: number, duration: number): Record<number, boolean> {
-  const values: Record<number, boolean> = {};
+export function transitionBrightness(from: number, to: number, duration: number): SimpleWaveMap {
+  const values: SimpleWaveMap = {};
   const numStages = Math.floor((duration * 1000) / WAVE_ACTION_INTERVAL);
   const brightnessRange = to - from;
-  const brightnessPerStage = brightnessRange / WAVE_ACTION_INTERVAL;
-  for (let stage = 0; stage < numStages; stage++) {
+  const brightnessPerStage = brightnessRange / numStages;
+  for (let stage = 0; stage <= numStages; stage++) {
     const brightnessAtStage = from + (brightnessPerStage * stage);
-    const pwmTime = Math.round(WAVE_ACTION_INTERVAL * (brightnessAtStage /100));
+    const pwmTime = Math.round(WAVE_ACTION_INTERVAL * (brightnessAtStage / 100));
     values[stage * WAVE_ACTION_INTERVAL] = true;
     values[stage * WAVE_ACTION_INTERVAL + pwmTime] = false;
   }
+  values[(numStages + 1) * WAVE_ACTION_INTERVAL] = false;
   return values;
 }
 
+
+export function delaySimpleMap(data: SimpleWaveMap, delay: number): SimpleWaveMap {
+  return Object.fromEntries(Object.entries(data).map(([k, v]) => [parseInt(k, 10) + delay, v]));
+}
+
+
+export function toWaveform(simpleMap: SimpleWaveMap, gpio: number): pigpioTypes.GenericWaveStep[] {
+  const simpleTimings = Object.entries(simpleMap).map(([time, value]) => ({ time: parseInt(time, 10), value }));
+  return simpleTimings.map(({ time, value }, idx) => {
+    const lastTime = simpleTimings[idx - 1]?.time ?? 0;
+    return { usDelay: time - lastTime, gpioOn: value ? gpio : 0, gpioOff: !value ? gpio : 0 };
+  });
+}
 
