@@ -1,4 +1,4 @@
-import { basicPwm, transitionBrightness } from './wavegen';
+import { extendSingleMaps, transitionBrightness } from './wavegen';
 
 
 const WAVE_ACTION_INTERVAL = 5000;
@@ -43,6 +43,31 @@ describe('transitionBrightness', () => {
       const onInterval = off - on;
       expect(onInterval).toBeGreaterThanOrEqual(lastOnInterval);
     } while (data.length > 0)
+  });
+
+  it('should throw an error if trying to use in reverse due to jitter in the transition', () => {
+    expect(() => transitionBrightness(100, 1, 1000)).toThrow();
+  });
+});
+
+
+describe('extendSingleMaps', () => {
+  it('should be able to join extend wave maps properly', () => {
+    const waveMaps = [
+      { 0: true, 20: false, 100: true, 140: false, 200: false },
+      { 0: true, 80: false, 100: true, 120: false, 200: false },
+    ] as const;
+    expect(extendSingleMaps(...waveMaps)).toEqual({
+      0: true,
+      20: false,
+      100: true,
+      140: false,
+      200: true,
+      280: false,
+      300: true,
+      320: false,
+      400: false
+    });
   });
 });
 

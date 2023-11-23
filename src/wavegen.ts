@@ -2,14 +2,12 @@ import type pigpioTypes from 'pigpio';
 
 const WAVE_ACTION_INTERVAL = 5000;
 
-
-type WaveStepAction = Omit<pigpioTypes.GenericWaveStep, 'usDelay'>;
-
-
 type SimpleWaveMap = { [timestamp: number]: boolean };
 
-
 export function transitionBrightness(from: number, to: number, duration: number): SimpleWaveMap {
+  if (from > to) {
+    throw new Error('Cannot do a reverse transition.');
+  }
   const values: SimpleWaveMap = {};
   const numStages = Math.floor((duration * 1000) / WAVE_ACTION_INTERVAL);
   const brightnessRange = to - from;
@@ -25,8 +23,16 @@ export function transitionBrightness(from: number, to: number, duration: number)
 }
 
 
-export function delaySimpleMap(data: SimpleWaveMap, delay: number): SimpleWaveMap {
-  return Object.fromEntries(Object.entries(data).map(([k, v]) => [parseInt(k, 10) + delay, v]));
+
+
+export function extendSingleMaps(...waveMaps: SimpleWaveMap[]): SimpleWaveMap {
+  return waveMaps.reduce((acc, cur) => {
+    const lastTime = parseInt(Object.keys(acc).pop() ?? '0', 10) ?? 0;
+    return {
+      ...acc,
+      ...Object.fromEntries(Object.entries(cur).map(([k, v]) => [parseInt(k, 10) + lastTime, v]))
+    };
+  }, {});
 }
 
 
