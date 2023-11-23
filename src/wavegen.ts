@@ -5,9 +5,6 @@ const WAVE_ACTION_INTERVAL = 5000;
 type SimpleWaveMap = { [timestamp: number]: boolean };
 
 export function transitionBrightness(from: number, to: number, duration: number): SimpleWaveMap {
-  if (from > to) {
-    throw new Error('Cannot do a reverse transition.');
-  }
   const values: SimpleWaveMap = {};
   const numStages = Math.floor((duration * 1000) / WAVE_ACTION_INTERVAL);
   const brightnessRange = to - from;

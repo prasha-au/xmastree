@@ -1,18 +1,18 @@
-import { extendSingleMaps, transitionBrightness } from './wavegen';
+import { extendSingleMaps, toWaveform, transitionBrightness } from './wavegen';
 
 
 const WAVE_ACTION_INTERVAL = 5000;
 
 describe('transitionBrightness', () => {
 
-  it('should end up at the requested brightness', () => {
-    const last2 = Object.keys(transitionBrightness(20, 100, 1000)).slice(-2).map(k => parseInt(k, 10));
-    expect(last2[1] - last2[0]).toBe(WAVE_ACTION_INTERVAL);
-  });
-
   it('should start at the requested brightness', () => {
     const first2 = Object.keys(transitionBrightness(20, 100, 1000)).slice(0, 2).map(k => parseInt(k, 10));
     expect(first2[1] - first2[0]).toBe(WAVE_ACTION_INTERVAL * 0.2);
+  });
+
+  it('should end up at the requested brightness', () => {
+    const last2 = Object.keys(transitionBrightness(20, 100, 1000)).slice(-2).map(k => parseInt(k, 10));
+    expect(last2[1] - last2[0]).toBe(WAVE_ACTION_INTERVAL);
   });
 
   it('should generate a transition that takes the requested duration + 1', () => {
@@ -47,6 +47,18 @@ describe('transitionBrightness', () => {
 
   it('should throw an error if trying to use in reverse due to jitter in the transition', () => {
     expect(() => transitionBrightness(100, 1, 1000)).toThrow();
+  });
+
+  describe('reverse transition', () => {
+    it('should start at the requested brightness', () => {
+      const first2 = Object.keys(transitionBrightness(80, 10, 1000)).slice(0, 2).map(k => parseInt(k, 10));
+      expect(first2[1] - first2[0]).toBe(WAVE_ACTION_INTERVAL * 0.8);
+    });
+
+    it('should end up at the requested brightness', () => {
+      const last2 = Object.keys(transitionBrightness(80, 10, 1000)).slice(-3).map(k => parseInt(k, 10));
+      expect(last2[1] - last2[0]).toBe(WAVE_ACTION_INTERVAL * 0.1);
+    });
   });
 });
 
