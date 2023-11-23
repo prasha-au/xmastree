@@ -1,5 +1,5 @@
 import type pigpioTypes from 'pigpio';
-import { BehaviorSubject, Observable, Subscription, distinctUntilChanged, map, merge, scan, share, skip } from 'rxjs';
+import { BehaviorSubject, Observable, Subscription, distinctUntilChanged, map, share, skip } from 'rxjs';
 import { platform } from 'os';
 import { spawn } from 'child_process';
 import objectHash from 'object-hash';
