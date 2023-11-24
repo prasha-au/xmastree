@@ -31,11 +31,12 @@ export function extendSingleMaps(...waveMaps: SimpleWaveMap[]): SimpleWaveMap {
 }
 
 export function transitionPulse(minBrightness: number, maxBrightness: number, duration: number): SimpleWaveMap {
+  const up = transitionBrightness(minBrightness, maxBrightness, Math.round(duration / 2));
+  const down = transitionBrightness(maxBrightness, minBrightness, Math.round(duration / 2));
+
   return extendSingleMaps(
     transitionBrightness(minBrightness, maxBrightness, Math.round(duration / 2)),
-    { 0: true, 10000: true },
     transitionBrightness(maxBrightness, minBrightness, Math.round(duration / 2)),
-    { 0: false, 10000: false }
   );
 }
 

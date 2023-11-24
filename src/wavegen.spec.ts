@@ -55,22 +55,24 @@ describe('transitionBrightness', () => {
 });
 
 
+
+
 describe('extendSingleMaps', () => {
   it('should be able to join extend wave maps properly', () => {
     const waveMaps = [
-      { 0: true, 20: false, 100: true, 140: false, 200: false },
-      { 0: true, 80: false, 100: true, 120: false, 200: false },
+      { 0: false, 20: true, 100: false, 140: true, 200: true },
+      { 0: false, 80: true, 100: false, 120: true, 200: true },
     ] as const;
     expect(extendSingleMaps(...waveMaps)).toEqual({
-      0: true,
-      20: false,
-      100: true,
-      140: false,
-      200: true,
-      280: false,
-      300: true,
-      320: false,
-      400: false
+      0: false,
+      20: true,
+      100: false,
+      140: true,
+      200: false,
+      280: true,
+      300: false,
+      320: true,
+      400: true
     });
   });
 });
