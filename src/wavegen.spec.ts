@@ -1,13 +1,13 @@
-import { extendSingleMaps, toWaveform, transitionBrightness } from './wavegen';
+import { extendSingleMaps, toWaveform, transitionBrightness, transitionPulse } from './wavegen';
 
 
 const WAVE_ACTION_INTERVAL = 5000;
 
 describe('transitionBrightness', () => {
 
-  it('should start at the requested brightness', () => {
+  it('should start transitioning immediately', () => {
     const first2 = Object.keys(transitionBrightness(20, 100, 1000)).slice(0, 2).map(k => parseInt(k, 10));
-    expect(first2[1] - first2[0]).toBe(WAVE_ACTION_INTERVAL * 0.2);
+    expect(first2[1] - first2[0]).toBeCloseTo(WAVE_ACTION_INTERVAL * (0.2 + 0.004));
   });
 
   it('should end up at the requested brightness', () => {
@@ -15,51 +15,43 @@ describe('transitionBrightness', () => {
     expect(last2[1] - last2[0]).toBe(WAVE_ACTION_INTERVAL);
   });
 
-  it('should generate a transition that takes the requested duration + 1', () => {
+  it('should end up at the requested brightness when going in reverse', () => {
+    const last2 = Object.keys(transitionBrightness(80, 10, 1000)).slice(-3).map(k => parseInt(k, 10));
+    expect(last2[1] - last2[0]).toBe(WAVE_ACTION_INTERVAL * 0.1);
+  });
+
+  it('should generate a transition that takes the requested duration', () => {
     const times = Object.keys(transitionBrightness(1, 90, 2000));
     const startTime = parseInt(times[0], 10);
     const endTime = parseInt(times[times.length - 1], 10);
-    expect(endTime - startTime).toBe(2_000_000 + WAVE_ACTION_INTERVAL);
+    expect(endTime - startTime).toBe(2_000_000);
   });
 
-  it('should tack on a final value to ensure it chains properly', () => {
-    expect(Object.values(transitionBrightness(1, 90, 2000)).slice(-2)).toEqual([false, false]);
+  it('the final value should be based on whether it is transitioning up or down', () => {
+    expect(Object.values(transitionBrightness(1, 90, 2000)).pop()).toBe(true);
+    expect(Object.values(transitionBrightness(90, 5, 2000)).pop()).toBe(false);
   });
 
-  it('should interleave on and off in that order', () => {
-    const data = Object.entries(transitionBrightness(20, 100, 1000)).map(([, v]) => v);
+  it('should interleave off and on in that order', () => {
+    const data = Object.entries(transitionBrightness(20, 100, 100)).map(([, v]) => v).slice(0, -1);
     for (let i = 0; i < data.length; i += 2) {
-      expect(data[i]).toBe(true);
-      expect(data[i + 1]).toBe(false);
+      expect(data[i]).toBe(false);
+      expect(data[i + 1]).toBe(true);
     }
   });
 
   it('should slowly transition to the correct value', () => {
-    const data = Object.entries(transitionBrightness(20, 100, 1000)).map(([k]) => parseInt(k, 10));
-    const lastOnInterval = 0;
+    const data = Object.keys(transitionBrightness(20, 100, 1000)).map((k) => parseInt(k, 10)).slice(0, -1);
+    let lastOnInterval = 0;
     do {
-      const on = data.shift() ?? 0;
       const off = data.shift() ?? 0;
-      const onInterval = off - on;
+      const on = data.shift() ?? 0;
+      const onInterval = on - off;
       expect(onInterval).toBeGreaterThanOrEqual(lastOnInterval);
+      lastOnInterval = onInterval
     } while (data.length > 0)
   });
 
-  it('should throw an error if trying to use in reverse due to jitter in the transition', () => {
-    expect(() => transitionBrightness(100, 1, 1000)).toThrow();
-  });
-
-  describe('reverse transition', () => {
-    it('should start at the requested brightness', () => {
-      const first2 = Object.keys(transitionBrightness(80, 10, 1000)).slice(0, 2).map(k => parseInt(k, 10));
-      expect(first2[1] - first2[0]).toBe(WAVE_ACTION_INTERVAL * 0.8);
-    });
-
-    it('should end up at the requested brightness', () => {
-      const last2 = Object.keys(transitionBrightness(80, 10, 1000)).slice(-3).map(k => parseInt(k, 10));
-      expect(last2[1] - last2[0]).toBe(WAVE_ACTION_INTERVAL * 0.1);
-    });
-  });
 });
 
 
@@ -81,5 +73,26 @@ describe('extendSingleMaps', () => {
       400: false
     });
   });
+});
+
+
+describe('toWaveform', () => {
+
+  it('should be able to generate a basic waveform', () => {
+    expect(toWaveform({
+      0: true,
+      20: false,
+      100: true,
+      140: false,
+      200: false
+    }, 10)).toEqual([
+      { usDelay: 0, gpioOn: 10, gpioOff: 0 },
+      { usDelay: 20, gpioOn: 0, gpioOff: 10 },
+      { usDelay: 80, gpioOn: 10, gpioOff: 0 },
+      { usDelay: 40, gpioOn: 0, gpioOff: 10 },
+      { usDelay: 60, gpioOn: 0, gpioOff: 10 },
+    ]);
+  });
+
 });
 

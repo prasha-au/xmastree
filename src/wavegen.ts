@@ -8,18 +8,16 @@ export function transitionBrightness(from: number, to: number, duration: number)
   const values: SimpleWaveMap = {};
   const numStages = Math.floor((duration * 1000) / WAVE_ACTION_INTERVAL);
   const brightnessRange = to - from;
-  const brightnessPerStage = brightnessRange / numStages;
-  for (let stage = 0; stage <= numStages; stage++) {
+  const brightnessPerStage = brightnessRange / (numStages - 1);
+  for (let stage = 1; stage < numStages; stage++) {
     const brightnessAtStage = from + (brightnessPerStage * stage);
     const pwmTime = Math.round(WAVE_ACTION_INTERVAL * (brightnessAtStage / 100));
-    values[stage * WAVE_ACTION_INTERVAL] = true;
-    values[stage * WAVE_ACTION_INTERVAL + pwmTime] = false;
+    values[(stage - 1) * WAVE_ACTION_INTERVAL] = false;
+    values[(stage - 1) * WAVE_ACTION_INTERVAL + pwmTime] = true;
   }
-  values[(numStages + 1) * WAVE_ACTION_INTERVAL] = false;
+  values[numStages * WAVE_ACTION_INTERVAL] = to > from;
   return values;
 }
-
-
 
 
 export function extendSingleMaps(...waveMaps: SimpleWaveMap[]): SimpleWaveMap {
@@ -30,6 +28,15 @@ export function extendSingleMaps(...waveMaps: SimpleWaveMap[]): SimpleWaveMap {
       ...Object.fromEntries(Object.entries(cur).map(([k, v]) => [parseInt(k, 10) + lastTime, v]))
     };
   }, {});
+}
+
+export function transitionPulse(minBrightness: number, maxBrightness: number, duration: number): SimpleWaveMap {
+  return extendSingleMaps(
+    transitionBrightness(minBrightness, maxBrightness, Math.round(duration / 2)),
+    { 0: true, 10000: true },
+    transitionBrightness(maxBrightness, minBrightness, Math.round(duration / 2)),
+    { 0: false, 10000: false }
+  );
 }
 
 

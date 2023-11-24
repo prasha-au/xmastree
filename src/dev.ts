@@ -4,7 +4,7 @@ import pipgio, { Gpio, WAVE_MODE_REPEAT } from 'pigpio';
 
 const ena = new Gpio(13, {mode: Gpio.OUTPUT});
 
-const enb = new Gpio(25, {mode: Gpio.OUTPUT});
+const enb = new Gpio(25, {mode: Gpio.OUTPUT, });
 
 async function bootstrap() {
 
