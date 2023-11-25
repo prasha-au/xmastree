@@ -1,5 +1,5 @@
 import * as mqtt from 'mqtt';
-import { BehaviorSubject, switchMap, NEVER, throttleTime, map } from 'rxjs';
+import { BehaviorSubject, switchMap, NEVER, throttleTime, tap } from 'rxjs';
 import { createSceneObservable, generateOffScene, generatePulseScene, generateTwinkleScene } from './lighting';
 import { getMicStream, getLightHardware } from './hardware';
 import { generateSoundScene } from './audio';
@@ -9,8 +9,6 @@ const DEVICE_ID = 'xmastree';
 
 
 const hardware = getLightHardware();
-hardware.init();
-
 
 const MODES = ['twinkle', 'sound', 'pulse'] as const;
 
@@ -42,18 +40,17 @@ stateSubject.asObservable().pipe(
     }
     switch (state.mode) {
       case 'sound': {
-        return generateSoundScene(getMicStream()).pipe(
-          map(scene => hardware.setLightState(scene)),
-        );
+        return generateSoundScene(getMicStream());
       }
       case 'pulse':
-        return createSceneObservable(hardware, generatePulseScene(state, 20));
+        return createSceneObservable(generatePulseScene(state, 20));
       case 'twinkle':
       default: {
-        return createSceneObservable(hardware, generateTwinkleScene(state, 20));
+        return createSceneObservable(generateTwinkleScene(state, 20));
       }
     }
-  })
+  }),
+  tap(scene => hardware.setLightState(scene))
 ).subscribe();
 
 

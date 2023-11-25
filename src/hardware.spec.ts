@@ -1,12 +1,21 @@
-import { LightHardware, getLightHardware } from './hardware';
+import { getLightHardware } from './hardware';
 
 process.env.PIGPIO_NO_LOGGING = '1';
 
-jest.mock('pigpio', () => require('pigpio-mock') as unknown);
+
+jest.mock('pigpio-mock', () => ({
+  ...jest.requireActual<object>('pigpio-mock'),
+  waveTxStop: jest.fn(),
+  waveCreate: jest.fn(),
+  waveClear: jest.fn(),
+  waveAddGeneric: jest.fn(),
+  waveTxSend: jest.fn(),
+}));
+
+jest.mock('pigpio', () => jest.requireMock<object>('pigpio-mock'));
 
 
-let hardware: LightHardware;
-
+let hardware: ReturnType<typeof getLightHardware>;
 
 beforeAll(() => {
   hardware = getLightHardware();

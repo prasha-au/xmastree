@@ -1,5 +1,5 @@
-import { Observable, map, repeat, share, take, timer } from 'rxjs';
-import type { LightHardware, LightState } from './hardware';
+import { Observable, map, repeat, take, timer } from 'rxjs';
+import type { LightState } from './hardware';
 
 function brightnessPercent(minBrightness: number, maxBrightness: number, position: number): number {
   const brightnessRange = maxBrightness - minBrightness;
@@ -98,13 +98,11 @@ export function generateOffScene(): LightState {
 }
 
 
-
-export function createSceneObservable(hardware: LightHardware, scene: Scene): Observable<void> {
+export function createSceneObservable(scene: Scene): Observable<LightState> {
   return timer(0, scene.interval).pipe(
     take(scene.frames.length),
     repeat(),
-    map(frameIdx => hardware.setLightState(scene.frames[frameIdx])),
-    share(),
+    map(frameIdx => scene.frames[frameIdx]),
   )
 }
 
