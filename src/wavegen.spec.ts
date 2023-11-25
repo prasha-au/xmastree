@@ -55,6 +55,15 @@ describe('transitionBrightness', () => {
 });
 
 
+describe.only('transitionPulse',  () => {
+  it('should generate an up-down pulse', () => {
+    const data = transitionPulse(20, 100, 100);
+    console.log(data);
+  });
+
+});
+
+
 
 
 describe('extendSingleMaps', () => {
@@ -63,7 +72,7 @@ describe('extendSingleMaps', () => {
       { 0: false, 20: true, 100: false, 140: true, 200: true },
       { 0: false, 80: true, 100: false, 120: true, 200: true },
     ] as const;
-    expect(extendSingleMaps(...waveMaps)).toEqual({
+    expect(extendSingleMaps([...waveMaps])).toEqual({
       0: false,
       20: true,
       100: false,

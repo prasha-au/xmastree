@@ -20,7 +20,7 @@ export function transitionBrightness(from: number, to: number, duration: number)
 }
 
 
-export function extendSingleMaps(...waveMaps: SimpleWaveMap[]): SimpleWaveMap {
+export function extendSingleMaps(waveMaps: SimpleWaveMap[]): SimpleWaveMap {
   return waveMaps.reduce((acc, cur) => {
     const lastTime = parseInt(Object.keys(acc).pop() ?? '0', 10) ?? 0;
     return {
@@ -31,13 +31,12 @@ export function extendSingleMaps(...waveMaps: SimpleWaveMap[]): SimpleWaveMap {
 }
 
 export function transitionPulse(minBrightness: number, maxBrightness: number, duration: number): SimpleWaveMap {
+  // TODO: Trim the ends so it does not flicker...
   const up = transitionBrightness(minBrightness, maxBrightness, Math.round(duration / 2));
   const down = transitionBrightness(maxBrightness, minBrightness, Math.round(duration / 2));
+  console.log({ up, down });
 
-  return extendSingleMaps(
-    transitionBrightness(minBrightness, maxBrightness, Math.round(duration / 2)),
-    transitionBrightness(maxBrightness, minBrightness, Math.round(duration / 2)),
-  );
+  return extendSingleMaps([up, down]);
 }
 
 
