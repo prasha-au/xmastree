@@ -1,17 +1,18 @@
 import * as mqtt from 'mqtt';
 import { BehaviorSubject, switchMap, NEVER, throttleTime, map } from 'rxjs';
-import { generateOffScene, generatePulseScene } from './lighting';
-import { actionSceneFrame, createSceneObservable, getMicStream, initHardware } from './hardware';
+import { createSceneObservable, generateOffScene, generatePulseScene, generateTwinkleScene } from './lighting';
+import { getMicStream, getLightHardware } from './hardware';
 import { generateSoundScene } from './audio';
 
 const MQTT_URL = 'mqtt://192.168.1.4';
 const DEVICE_ID = 'xmastree';
 
 
-const hardware = initHardware();
+const hardware = getLightHardware();
+hardware.init();
 
 
-const MODES = ['pulse', 'sound'] as const;
+const MODES = ['twinkle', 'sound', 'pulse'] as const;
 
 interface TreeState {
   power: boolean;
@@ -22,7 +23,7 @@ interface TreeState {
 
 const INITIAL_STATE = {
   power: true,
-  mode: 'pulse',
+  mode: 'twinkle',
   brightness: 100,
   speed: 35,
 } as const;
@@ -36,19 +37,20 @@ stateSubject.asObservable().pipe(
   switchMap(state => {
     console.log('Setting up new state: ', state);
     if (!state.power) {
-      actionSceneFrame(hardware, generateOffScene());
+      hardware.setLightState(generateOffScene());
       return NEVER;
     }
     switch (state.mode) {
       case 'sound': {
         return generateSoundScene(getMicStream()).pipe(
-          map(scene => actionSceneFrame(hardware, scene)),
+          map(scene => hardware.setLightState(scene)),
         );
       }
       case 'pulse':
+        return createSceneObservable(hardware, generatePulseScene(state, 20));
+      case 'twinkle':
       default: {
-        const scene = generatePulseScene(state, 20);
-        return createSceneObservable(hardware, scene);
+        return createSceneObservable(hardware, generateTwinkleScene(state, 20));
       }
     }
   })
@@ -118,9 +120,14 @@ client.on('message', (topic, payloadBuffer) => {
           stateSubject.next({ ...currentState, power: newPowerValue });
           break;
         }
-        case 'mode_sound':
+        case 'mode_twinkle':
         case 'mode_pulse':
-          stateSubject.next({ ...currentState, mode: payload.data.control.split('_')[1] as typeof MODES[number], power: true });
+        case 'mode_sound':
+          stateSubject.next({
+            ...currentState,
+            power: true,
+            mode: payload.data.control.replace(/^mode_/g, '') as typeof MODES[number],
+          });
           break;
         case 'brightness': {
           stateSubject.next({ ...currentState, power: true, brightness: payload.data.value });

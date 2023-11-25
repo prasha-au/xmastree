@@ -1,34 +1,25 @@
-import { Hardware, initHardware } from './hardware';
-import { Gpio } from 'pigpio';
+import { LightHardware, getLightHardware } from './hardware';
 
 process.env.PIGPIO_NO_LOGGING = '1';
 
 jest.mock('pigpio', () => require('pigpio-mock') as unknown);
 
 
-let hardware: Hardware;
+let hardware: LightHardware;
 
 
 beforeAll(() => {
-  hardware = initHardware();
+  hardware = getLightHardware();
 });
 
 it('should be able to init correctly', () => {
   expect(hardware).toBeDefined();
 });
 
-
-it('should be able to set brightness', () => {
-  const spy = jest.spyOn(Gpio.prototype, 'pwmWrite');
-  hardware.star.setBrightness(100);
-  expect(spy).toHaveBeenCalledWith(255);
-});
-
-
-it('should be able to reverse direction', () => {
-  const spy = jest.spyOn(Gpio.prototype, 'digitalWrite');
-  hardware.light1.setDirection(true);
-  expect(spy).toHaveBeenCalledWith(1);
-  expect(spy).toHaveBeenCalledWith(0);
-  expect(spy.mock.instances[0]).not.toBe(spy.mock.instances[1]);
+it('hould be bale to push light states', () => {
+  hardware.setLightState({
+    star: { brightness: 80 },
+    light1: { brightness: 80, direction: 'positive' },
+    light2: { brightness: 56, direction: 'negative' },
+  })
 });

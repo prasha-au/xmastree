@@ -1,3 +1,5 @@
+import { Observable, map, repeat, share, take, timer } from 'rxjs';
+import type { LightHardware, LightState } from './hardware';
 
 function brightnessPercent(minBrightness: number, maxBrightness: number, position: number): number {
   const brightnessRange = maxBrightness - minBrightness;
@@ -26,7 +28,7 @@ export function generateBasicPulseMap(config: BasicPulseConfig): number[] {
 }
 
 
-export function generateAlternatingPulseMap(config: BasicPulseConfig): { brightness: number; flip: boolean }[] {
+export function generateAlternatingPulseMap(config: BasicPulseConfig): { brightness: number; direction: 'positive' | 'negative' | 'both'; }[] {
   const basicLightingMap = generateBasicPulseMap({
     minBrightness: config.minBrightness,
     maxBrightness: config.maxBrightness,
@@ -34,29 +36,20 @@ export function generateAlternatingPulseMap(config: BasicPulseConfig): { brightn
     interval: config.interval
   });
   return [
-    ...basicLightingMap.map(brightness => ({ brightness, flip: false })),
-    ...basicLightingMap.map(brightness => ({ brightness, flip: true })),
+    ...basicLightingMap.map(brightness => ({ brightness, direction: 'positive' as const })),
+    ...basicLightingMap.map(brightness => ({ brightness, direction: 'negative' as const })),
   ];
 }
 
 
-export interface SceneFrame {
-  star: { brightness: number; };
-  light1: { brightness: number; flip: boolean; };
-  light2: { brightness: number; flip: boolean; };
-}
 
 export interface Scene {
   interval: number;
-  frames: {
-    star: { brightness: number; };
-    light1: { brightness: number; flip: boolean; };
-    light2: { brightness: number; flip: boolean; };
-  }[];
+  frames: LightState[];
 }
 
 
-export function generatePulseScene(config: { speed: number; brightness: number; }, interval: number): Scene {
+export function generateTwinkleScene(config: { speed: number; brightness: number; }, interval: number): Scene {
   const totalDuration = 5000 - Math.floor(4800 * (config.speed / 100));
   const starLightMap = generateBasicPulseMap({
     minBrightness: 30,
@@ -65,8 +58,8 @@ export function generatePulseScene(config: { speed: number; brightness: number; 
     interval
   });
   const stringLightMap = generateAlternatingPulseMap({
-    minBrightness: 5,
-    maxBrightness: 100,
+    minBrightness: 1,
+    maxBrightness: config.brightness,
     totalDuration,
     interval
   });
@@ -82,11 +75,36 @@ export function generatePulseScene(config: { speed: number; brightness: number; 
 }
 
 
-export function generateOffScene(): SceneFrame {
+export function generatePulseScene(config: { speed: number; brightness: number }, interval: number): Scene {
+  const totalDuration = 5000 - Math.floor(4800 * (config.speed / 100));
+  const pulseMap = generateBasicPulseMap({ minBrightness: 1, maxBrightness: config.brightness, totalDuration, interval });
+  return {
+    interval,
+    frames: Array.from({ length: pulseMap.length }, (_v, idx) => ({
+      star: { brightness: pulseMap[idx] },
+      light1: { brightness: pulseMap[idx], direction: 'both' },
+      light2: { brightness: pulseMap[idx], direction: 'both' },
+    }))
+  }
+}
+
+
+export function generateOffScene(): LightState {
   return {
     star: { brightness: 0 },
-    light1: { brightness: 0, flip: false },
-    light2: { brightness: 0, flip: false },
+    light1: { brightness: 0, direction: 'positive' },
+    light2: { brightness: 0, direction: 'positive' },
   };
+}
+
+
+
+export function createSceneObservable(hardware: LightHardware, scene: Scene): Observable<void> {
+  return timer(0, scene.interval).pipe(
+    take(scene.frames.length),
+    repeat(),
+    map(frameIdx => hardware.setLightState(scene.frames[frameIdx])),
+    share(),
+  )
 }
 

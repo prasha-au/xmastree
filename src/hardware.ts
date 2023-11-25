@@ -1,86 +1,100 @@
 import type pigpioTypes from 'pigpio';
-import type { Scene, SceneFrame } from './lighting';
-import { Observable, map, repeat, share, skip, take, timer } from 'rxjs';
+import { BehaviorSubject, Observable, Subscription, distinctUntilChanged, map, share, skip } from 'rxjs';
 import { platform } from 'os';
 import { spawn } from 'child_process';
+import objectHash from 'object-hash';
 
 const isWindows = platform() === 'win32';
 
-
-const { Gpio } = (isWindows ? require('pigpio-mock') : require('pigpio')) as typeof pigpioTypes;
-
+const pigpio = (isWindows ? require('pigpio-mock') : require('pigpio')) as typeof pigpioTypes;
 
 const PWM_RANGE = 255;
 
-export interface Hardware {
-  star: {
-    setBrightness(value: number): void;
-  },
-  light1: {
-    setBrightness(value: number): void;
-    setDirection(reverse: boolean): void;
-  },
-  light2: {
-    setBrightness(value: number): void;
-    setDirection(reverse: boolean): void;
-  },
+const PIN_MAP = {
+  star: { pwm: 12 },
+  light1: { pwm: 13, pos: 26, neg: 6 },
+  light2: { pwm: 25, pos: 23, neg: 24 },
+} as const;
+
+
+export interface LightState {
+  star: { brightness: number; };
+  light1: { brightness: number; direction: 'positive' | 'negative' | 'both'; };
+  light2: { brightness: number; direction: 'positive' | 'negative' | 'both'; };
 }
 
 
-
-export function initHardware(): Hardware {
-
-  const star = new Gpio(12, { mode: Gpio.OUTPUT });
-
-  const ena = new Gpio(13, {mode: Gpio.OUTPUT});
-  const in1 = new Gpio(26, { mode: Gpio.OUTPUT });
-  const in2 = new Gpio(6, { mode: Gpio.OUTPUT });
-
-  const enb = new Gpio(25, {mode: Gpio.OUTPUT});
-  const in3 = new Gpio(23, { mode: Gpio.OUTPUT });
-  const in4 = new Gpio(24, { mode: Gpio.OUTPUT });
+class LightHardwareData {
+  private gpios = {
+    star: new pigpio.Gpio(PIN_MAP.star.pwm, { mode: pigpio.Gpio.OUTPUT }),
+    light1: new pigpio.Gpio(PIN_MAP.light1.pwm, {mode: pigpio.Gpio.OUTPUT}),
+    light2: new pigpio.Gpio(PIN_MAP.light2.pwm, {mode: pigpio.Gpio.OUTPUT}),
+  } as const;
 
 
-  function setPwm(gpio: pigpioTypes.Gpio, value: number) {
-    gpio.pwmWrite(Math.round(PWM_RANGE * (value / 100)));
+  private lightStateSubject = new BehaviorSubject<LightState>({
+    star: { brightness: 0 },
+    light1: { brightness: 0, direction: 'positive' },
+    light2: { brightness: 0, direction: 'positive' },
+  });
+
+  private lightState = this.lightStateSubject.asObservable().pipe(
+    distinctUntilChanged((a, b) => objectHash(a) === objectHash(b)),
+  );
+
+  private subscription?: Subscription;
+
+  setLightState(state: LightState): void {
+    this.lightStateSubject.next(state);
   }
 
-  function setDirection(gpio1: pigpioTypes.Gpio, gpio2: pigpioTypes.Gpio, reverse: boolean) {
-    gpio1.digitalWrite(reverse ? 1 : 0);
-    gpio2.digitalWrite(reverse ? 0 : 1);
+  public init(): void {
+    this.subscription?.unsubscribe();
+    this.subscription = new Subscription();
+
+    const brightnessSub = this.lightState.pipe(
+      map(state => [state.star.brightness, state.light1.brightness, state.light2.brightness]),
+      map(values => values.map(v => Math.round(PWM_RANGE * (v / 100)))),
+    ).subscribe(([star, light1, light2]) => {
+      this.gpios.star.pwmWrite(star);
+      this.gpios.light1.pwmWrite(light1);
+      this.gpios.light2.pwmWrite(light2);
+    });
+    this.subscription.add(brightnessSub);
+
+    const directionSubWave = this.lightState.pipe(
+      map(state => [state.light1.direction, state.light2.direction]),
+      distinctUntilChanged((a, b) => objectHash(a) === objectHash(b)),
+    ).subscribe(([light1, light2]) => {
+      function createPulses(pins: { pos: number; neg: number }, direction: 'positive' | 'negative' | 'both') {
+        return direction === 'both' ?  [
+          { gpioOn: pins.pos, gpioOff: pins.neg, usDelay: 1000 },
+          { gpioOn: pins.neg, gpioOff: pins.pos, usDelay: 1000 }
+        ] : [{
+          gpioOn: direction === 'positive' ? pins.pos : pins.neg,
+          gpioOff: direction === 'negative' ? pins.pos : pins.neg,
+          usDelay: 1000
+        }];
+
+      }
+      const waveform = [...createPulses(PIN_MAP.light1, light1), ...createPulses(PIN_MAP.light2, light2)];
+      pigpio.waveTxStop();
+      pigpio.waveClear();
+      if (waveform.length > 0) {
+        pigpio.waveAddGeneric(waveform);
+        const waveId = pigpio.waveCreate();
+        pigpio.waveTxSend(waveId, pigpio.WAVE_MODE_REPEAT);
+      }
+    });
+    this.subscription.add(directionSubWave);
   }
-
-  return {
-    star: {
-      setBrightness: v => setPwm(star, v),
-    },
-    light1: {
-      setBrightness: v => setPwm(ena, v),
-      setDirection: v => setDirection(in1, in2, v),
-    },
-    light2: {
-      setBrightness: v => setPwm(enb, v),
-      setDirection: v => setDirection(in3, in4, v),
-    }
-  };
-}
-
-export function actionSceneFrame(hardware: Hardware, frame: SceneFrame) {
-  hardware.star.setBrightness(frame.star.brightness);
-  hardware.light1.setBrightness(frame.light1.brightness);
-  hardware.light1.setDirection(frame.light1.flip);
-  hardware.light2.setBrightness(frame.light2.brightness);
-  hardware.light2.setDirection(frame.light2.flip);
 }
 
 
-export function createSceneObservable(hardware: Hardware, scene: Scene): Observable<void> {
-  return timer(0, scene.interval).pipe(
-    take(scene.frames.length),
-    repeat(),
-    map(frameIdx => actionSceneFrame(hardware, scene.frames[frameIdx])),
-    share(),
-  )
+export type LightHardware = InstanceType<typeof LightHardwareData>;
+
+export function getLightHardware(): LightHardware {
+  return new LightHardwareData();
 }
 
 
