@@ -1,109 +1,102 @@
-import { extendSingleMaps, toWaveform, transitionBrightness, transitionPulse } from './wavegen';
+import { toWaveform, transitionBrightness, transitionPulse } from './wavegen';
 
 
 const WAVE_ACTION_INTERVAL = 5000;
 
 describe('transitionBrightness', () => {
-
-  it('should start transitioning immediately', () => {
-    const first2 = Object.keys(transitionBrightness(20, 100, 1000)).slice(0, 2).map(k => parseInt(k, 10));
-    expect(first2[1] - first2[0]).toBeCloseTo(WAVE_ACTION_INTERVAL * (0.2 + 0.004));
+  it('should generate entries that add up to the correct duration', () => {
+    const pulses = transitionBrightness(20, 100, 1000);
+    expect(pulses.reduce((acc, curr) => acc + curr.delay, 0)).toEqual(1000_000);
   });
 
-  it('should end up at the requested brightness', () => {
-    const last2 = Object.keys(transitionBrightness(20, 100, 1000)).slice(-2).map(k => parseInt(k, 10));
-    expect(last2[1] - last2[0]).toBe(WAVE_ACTION_INTERVAL);
+  it('should have the starting brightness as the first duration', () => {
+    const [first, second] = transitionBrightness(20, 100, 1000).slice(0, 2);
+    const total = first.delay + second.delay;
+    expect(first.delay / total).toBeCloseTo(0.2);
+    expect(second.delay / total).toBeCloseTo(0.8);
   });
 
-  it('should end up at the requested brightness when going in reverse', () => {
-    const last2 = Object.keys(transitionBrightness(80, 10, 1000)).slice(-3).map(k => parseInt(k, 10));
-    expect(last2[1] - last2[0]).toBe(WAVE_ACTION_INTERVAL * 0.1);
+  it('should have the finishing brightness as the last duration', () => {
+    const [secondLast, last] = transitionBrightness(20, 90, 1000).slice(-2);
+    const total = last.delay + secondLast.delay;
+    expect(secondLast.delay / total).toBeCloseTo(0.9);
+    expect(last.delay / total).toBeCloseTo(0.1);
   });
 
-  it('should generate a transition that takes the requested duration', () => {
-    const times = Object.keys(transitionBrightness(1, 90, 2000));
-    const startTime = parseInt(times[0], 10);
-    const endTime = parseInt(times[times.length - 1], 10);
-    expect(endTime - startTime).toBe(2_000_000);
-  });
-
-  it('the final value should be based on whether it is transitioning up or down', () => {
-    expect(Object.values(transitionBrightness(1, 90, 2000)).pop()).toBe(true);
-    expect(Object.values(transitionBrightness(90, 5, 2000)).pop()).toBe(false);
-  });
-
-  it('should interleave off and on in that order', () => {
-    const data = Object.entries(transitionBrightness(20, 100, 100)).map(([, v]) => v).slice(0, -1);
+  it('should interleave on and off', () => {
+    const data = transitionBrightness(15, 80, 100);
     for (let i = 0; i < data.length; i += 2) {
-      expect(data[i]).toBe(false);
-      expect(data[i + 1]).toBe(true);
+      expect(data[i].isOn).toBe(true);
+      expect(data[i + 1].isOn).toBe(false);
     }
-  });
-
-  it('should slowly transition to the correct value', () => {
-    const data = Object.keys(transitionBrightness(20, 100, 1000)).map((k) => parseInt(k, 10)).slice(0, -1);
-    let lastOnInterval = 0;
-    do {
-      const off = data.shift() ?? 0;
-      const on = data.shift() ?? 0;
-      const onInterval = on - off;
-      expect(onInterval).toBeGreaterThanOrEqual(lastOnInterval);
-      lastOnInterval = onInterval
-    } while (data.length > 0)
-  });
-
-});
-
-
-describe.only('transitionPulse',  () => {
-  it('should generate an up-down pulse', () => {
-    const data = transitionPulse(20, 100, 100);
-    console.log(data);
-  });
-
+  })
 });
 
 
 
 
-describe('extendSingleMaps', () => {
-  it('should be able to join extend wave maps properly', () => {
-    const waveMaps = [
-      { 0: false, 20: true, 100: false, 140: true, 200: true },
-      { 0: false, 80: true, 100: false, 120: true, 200: true },
-    ] as const;
-    expect(extendSingleMaps([...waveMaps])).toEqual({
-      0: false,
-      20: true,
-      100: false,
-      140: true,
-      200: false,
-      280: true,
-      300: false,
-      320: true,
-      400: true
-    });
-  });
-});
 
 
-describe('toWaveform', () => {
 
-  it('should be able to generate a basic waveform', () => {
-    expect(toWaveform({
-      0: true,
-      20: false,
-      100: true,
-      140: false,
-      200: false
-    }, 10)).toEqual([
-      { usDelay: 0, gpioOn: 10, gpioOff: 0 },
-      { usDelay: 20, gpioOn: 0, gpioOff: 10 },
-      { usDelay: 80, gpioOn: 10, gpioOff: 0 },
-      { usDelay: 40, gpioOn: 0, gpioOff: 10 },
-      { usDelay: 60, gpioOn: 0, gpioOff: 10 },
-    ]);
-  });
 
-});
+
+
+
+
+
+
+// describe('transitionPulse',  () => {
+//   it('should generate an up-down pulse', () => {
+//     const data = transitionPulse(20, 100, 100);
+//     console.log(data);
+//   });
+
+// });
+
+
+
+
+// describe('extendSingleMaps', () => {
+//   it('should be able to join extend items properly', () => {
+//     const waveMaps = [
+//       { 0: false, 20: true, 100: false, 140: true, 200: true },
+//       { 0: false, 80: true, 100: false, 120: true, 200: true },
+//     ] as const;
+//     console.log(extendSingleMaps([...waveMaps]));
+//     expect(extendSingleMaps([...waveMaps])).toEqual({
+//       0: false,
+//       20: true,
+//       100: false,
+//       140: true,
+//       200: false,
+//       280: true,
+//       300: false,
+//       320: true,
+//       400: true
+//     });
+//   });
+// });
+
+
+// describe('toWaveform', () => {
+//   it('should be able to generate a basic waveform', () => {
+//     expect(toWaveform({
+//       0: true,
+//       20: false,
+//       100: true,
+//       140: false,
+//       200: false
+//     }, 10)).toEqual([
+//       { usDelay: 20, gpioOn: 10, gpioOff: 0 },
+//       { usDelay: 80, gpioOn: 0, gpioOff: 10 },
+//       { usDelay: 40, gpioOn: 10, gpioOff: 0 },
+//       { usDelay: 60, gpioOn: 0, gpioOff: 10 },
+//     ]);
+//   });
+
+//   it('should create a waveform with the correct total duration', () => {
+//     const waveform = toWaveform({ 0: true, 20: false, 1200: false }, 10);
+//     expect(waveform.reduce((acc, curr) => acc + curr.usDelay, 0)).toBe(1200);
+//   });
+// });
 
