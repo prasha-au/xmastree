@@ -1,4 +1,4 @@
-import { toWaveform, transitionBrightness, transitionPulse } from './wavegen';
+import { alternating, mergeWaveforms, toWaveform, transitionBrightness, transitionPulse } from './wavegen';
 
 
 function assertPwmPercentage([first, second]: { delay: number }[], percent: number): void {
@@ -53,3 +53,39 @@ describe('toWaveform', () => {
   });
 });
 
+
+describe('alternating', () => {
+  // TODO: Write a proper test
+  it('should rotate pins', () => {
+    expect(alternating([1, 2], 100)).toHaveLength(20);
+  });
+});
+
+
+
+describe('mergeWaveforms', () => {
+  it('should merge properly', () => {
+    const wave1 = [{ gpioOn: 1, gpioOff: 2, usDelay: 100 }, { gpioOn: 2, gpioOff: 1, usDelay: 100 }];
+    const wave2 = [{ gpioOn: 3, gpioOff: 4, usDelay: 100 }, { gpioOn: 4, gpioOff: 3, usDelay: 100 }];
+    const merged = mergeWaveforms([wave1, wave2]);
+    expect(merged).toEqual([
+      { gpioOn: 1, gpioOff: 2, usDelay: 0 },
+      { gpioOn: 3, gpioOff: 4, usDelay: 100 },
+      { gpioOn: 2, gpioOff: 1, usDelay: 0 },
+      { gpioOn: 4, gpioOff: 3, usDelay: 100 },
+    ]);
+  });
+
+  it('should be able to interleave properly', () => {
+    const wave1 = [{ gpioOn: 1, gpioOff: 2, usDelay: 100 }, { gpioOn: 2, gpioOff: 1, usDelay: 20 }];
+    const wave2 = [{ gpioOn: 3, gpioOff: 4, usDelay: 50 }, { gpioOn: 4, gpioOff: 3, usDelay: 100 }];
+    const merged = mergeWaveforms([wave1, wave2]);
+    console.log(merged);
+    expect(merged).toEqual([
+      { gpioOn: 3, gpioOff: 4, usDelay: 50 },
+      { gpioOn: 1, gpioOff: 2, usDelay: 50 },
+      { gpioOn: 2, gpioOff: 1, usDelay: 20 },
+      { gpioOn: 4, gpioOff: 3, usDelay: 30 },
+    ]);
+  });
+});

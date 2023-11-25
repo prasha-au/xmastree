@@ -35,3 +35,39 @@ export function toWaveform(simpleMap: SimpleWavePulse[], gpio: number): pigpioTy
   return simpleMap.map(({ delay, isOn }) => ({ gpioOn: isOn ? gpio : 0, gpioOff: !isOn ? gpio : 0, usDelay: delay }));
 }
 
+
+export function alternating(gpios: [number, number], duration: number): pigpioTypes.GenericWaveStep[] {
+  const durationUs = duration * 1000;
+  return Array.from({ length: durationUs / WAVE_ACTION_INTERVAL }, (_v, idx) => {
+    return {
+      gpioOn: idx % 2 === 0 ? gpios[0] : gpios[1],
+      gpioOff: idx % 2 === 0 ? gpios[1] : gpios[0],
+      usDelay: WAVE_ACTION_INTERVAL
+    };
+  });
+}
+
+
+export function mergeWaveforms(waveforms: pigpioTypes.GenericWaveStep[][]) {
+  const pulseMap = waveforms.reduce((acc, curr) => {
+    let upToTime = 0;
+    for (const pulse of curr) {
+      const time = upToTime + pulse.usDelay;
+      acc[time] = [...(acc[time] ?? []), pulse];
+      upToTime = time;
+    }
+    return acc;
+  }, {} as Record<number, pigpioTypes.GenericWaveStep[]>);
+
+  const pulseTimes = Object.keys(pulseMap).map(v => Number(v))
+  pulseTimes.sort((a, b) => a - b);
+
+  return pulseTimes.map((time, idx) => {
+    const lastTime = pulseTimes[idx - 1] ?? 0;
+    const pulsesAtTime = pulseMap[time];
+    return [
+      ...pulsesAtTime.slice(0, -1).map(p => ({ ...p, usDelay: 0 })),
+      { ...pulsesAtTime[pulsesAtTime.length - 1], usDelay: time - lastTime },
+    ];
+  }).flat();
+}

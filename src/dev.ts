@@ -1,33 +1,47 @@
 
-import pipgio, { Gpio, WAVE_MODE_REPEAT } from 'pigpio';
+import pigpio, { Gpio, WAVE_MODE_REPEAT } from 'pigpio';
+import { alternating, mergeWaveforms, toWaveform, transitionBrightness, transitionPulse } from './wavegen';
 
 
-const ena = new Gpio(13, {mode: Gpio.OUTPUT});
-
-const enb = new Gpio(25, {mode: Gpio.OUTPUT, });
 
 async function bootstrap() {
 
+  pigpio.initialize();
+
   while (true) {
-    ena.pwmWrite(255);
-    enb.pwmWrite(255);
-    pipgio.waveClear();
+    // ena.pwmWrite(255);
+    // enb.pwmWrite(255);
+    pigpio.waveClear();
 
-    const waveform = [
-      { gpioOn: 26, gpioOff: 6, usDelay: 1 },
-      { gpioOn: 23, gpioOff: 24, usDelay: 5 },
-      { gpioOn: 6, gpioOff: 26, usDelay: 1 },
-      { gpioOn: 24, gpioOff: 23, usDelay: 5 },
-    ];
-    pipgio.waveAddGeneric(waveform);
 
-    const waveId = pipgio.waveCreate();
-    pipgio.waveTxSend(waveId, WAVE_MODE_REPEAT);
+    pigpio.waveAddGeneric(mergeWaveforms([
+      toWaveform(transitionPulse(1, 100, 2000), 12),
+      // toWaveform(transitionPulse(1, 100, 2000), 13),
+      toWaveform(transitionPulse(1, 100, 2000), 25),
+      // alternating([26, 6], 2000),
+      // alternating([23, 24], 2000),
+    ]));
 
-    await new Promise(resolve => setTimeout(resolve, 5000));
-    ena.pwmWrite(0);
-    enb.pwmWrite(0);
-    await new Promise(resolve => setTimeout(resolve, 5000));
+    const waveId = pigpio.waveCreate();
+
+    while (true) {
+      console.log('wave send');
+      pigpio.waveTxSend(waveId, pigpio.WAVE_MODE_REPEAT);
+      while (pigpio.waveTxBusy()) {}
+      console.log('wave done');
+
+      // output.digitalWrite(1);
+      // await new Promise(resolve => setTimeout(resolve, 500));
+      // output.digitalWrite(0);
+      // await new Promise(resolve => setTimeout(resolve, 1000));
+    }
+
+
+
+    // await new Promise(resolve => setTimeout(resolve, 5000));
+    // ena.pwmWrite(0);
+    // enb.pwmWrite(0);
+    // await new Promise(resolve => setTimeout(resolve, 5000));
   }
 
 
