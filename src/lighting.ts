@@ -77,7 +77,7 @@ export function generateTwinkleScene(config: { speed: number; brightness: number
 
 export function generatePulseScene(config: { speed: number; brightness: number }, interval: number): Scene {
   const totalDuration = 5000 - Math.floor(4800 * (config.speed / 100));
-  const pulseMap = generateBasicPulseMap({ minBrightness: 1, maxBrightness: config.brightness, totalDuration, interval });
+  const pulseMap = generateBasicPulseMap({ minBrightness: 20, maxBrightness: config.brightness, totalDuration, interval });
   return {
     interval,
     frames: Array.from({ length: pulseMap.length }, (_v, idx) => ({
