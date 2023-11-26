@@ -25,7 +25,7 @@ it('should be able to init correctly', () => {
   expect(hardware).toBeDefined();
 });
 
-it('hould be bale to push light states', () => {
+it('should be able to push light states', () => {
   hardware.setLightState({
     star: { brightness: 80 },
     light1: { brightness: 80, direction: 'positive' },
