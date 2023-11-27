@@ -27,7 +27,11 @@ class LightHardware {
   private gpios = {
     star: new pigpio.Gpio(PIN_MAP.star.pwm, { mode: pigpio.Gpio.OUTPUT }),
     light1: new pigpio.Gpio(PIN_MAP.light1.pwm, {mode: pigpio.Gpio.OUTPUT}),
+    light1in1: new pigpio.Gpio(PIN_MAP.light1.pos, {mode: pigpio.Gpio.OUTPUT}),
+    light1in2: new pigpio.Gpio(PIN_MAP.light1.neg, {mode: pigpio.Gpio.OUTPUT}),
     light2: new pigpio.Gpio(PIN_MAP.light2.pwm, {mode: pigpio.Gpio.OUTPUT}),
+    light2in3: new pigpio.Gpio(PIN_MAP.light2.pos, {mode: pigpio.Gpio.OUTPUT}),
+    light2in4: new pigpio.Gpio(PIN_MAP.light2.neg, {mode: pigpio.Gpio.OUTPUT}),
   } as const;
 
   public setLightState(state: LightState): void {
