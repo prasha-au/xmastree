@@ -23,13 +23,17 @@ test:
   stage: verify
   script:
     - npm i --prefer-offline jest-junit
-    - npm run test -- --ci --reporters=default --reporters=jest-junit
+    - npm run test -- --ci --coverage --reporters=default --reporters=jest-junit
   artifacts:
     when: always
     paths:
       - junit.xml
+      - coverage/
     reports:
       junit: junit.xml
+      coverage_report:
+        coverage_format: cobertura
+        path: coverage/cobertura-coverage.xml
 
 format:
   stage: verify
