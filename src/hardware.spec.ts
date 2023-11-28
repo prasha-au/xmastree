@@ -4,11 +4,11 @@ import { getLightHardware } from './hardware';
 process.env.PIGPIO_NO_LOGGING = '1';
 
 jest.mock('os', () => ({
-  ...jest.requireActual('os'),
+  ...jest.requireActual<object>('os'),
   platform: () => 'linux',
 }));
 
-const pwmWriteSpy = jest.fn();
+const pwmWriteSpy = jest.fn<unknown, [number, number]>();
 jest.mock('pigpio', () => ({
   Gpio: jest.fn((pin: number) => ({
     pwmWrite: (value: number) => pwmWriteSpy(pin, value),
@@ -44,8 +44,7 @@ it('should be able to push light states', () => {
   expect(pwmWriteSpy).toHaveBeenCalledWith(12, Math.round(255 * 0.8));
   expect(pwmWriteSpy).toHaveBeenCalledWith(13, Math.round(255 * 0.8));
   expect(pwmWriteSpy).toHaveBeenCalledWith(25, Math.round(255 * 0.56));
-  expect(waveAddGenericSpy).toHaveBeenCalledWith(expect.arrayContaining([
-    expect.objectContaining({ gpioOn: 26 }),
-    expect.objectContaining({ gpioOn: 24 }),
-  ]));
+  expect(waveAddGenericSpy).toHaveBeenCalledWith(
+    expect.arrayContaining([expect.objectContaining({ gpioOn: 26 }), expect.objectContaining({ gpioOn: 24 })])
+  );
 });
