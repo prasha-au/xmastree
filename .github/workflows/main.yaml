@@ -2,10 +2,6 @@ name: Main Workflow
 
 on: [push, pull_request]
 
-strategy:
-  matrix:
-    node-version: ['16.x']
-
 jobs:
   build:
     runs-on: ubuntu-latest
